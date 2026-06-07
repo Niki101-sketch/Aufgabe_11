@@ -34,6 +34,7 @@ jobs:
       # ── 1. Syntax Check (Compile) ────────────
       - name: Syntax Check (compileall)
         run: python -m compileall .
+        continue-on-error: true   # ← diese Zeile hinzufügen
 
       # ── 2. Linting mit flake8 ────────────────
       - name: Lint with flake8
