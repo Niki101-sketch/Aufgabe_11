@@ -1,0 +1,61 @@
+name: CI – Compile, Test, Lint, Security
+
+# ──────────────────────────────────────────────
+# Ausführungszeitpunkte (alle 3 wie verlangt)
+# ──────────────────────────────────────────────
+on:
+  push:                        # 1. Nach jedem Push auf main
+    branches: [ "main" ]
+  schedule:                    # 2. Zeitgesteuert – jeden Tag um 06:00 UTC
+    - cron: "0 6 * * *"
+  workflow_dispatch:           # 3. Manuell über GitHub-Website auslösbar
+
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+
+    steps:
+      # ── Repo auschecken ──────────────────────
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # ── Python einrichten ────────────────────
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+
+      # ── Abhängigkeiten installieren ──────────
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+          pip install flake8 bandit pip-audit
+
+      # ── 1. Syntax Check (Compile) ────────────
+      - name: Syntax Check (compileall)
+        run: python -m compileall .
+
+      # ── 2. Linting mit flake8 ────────────────
+      - name: Lint with flake8
+        run: |
+          flake8 . --max-line-length=120 --exclude=.git,__pycache__ --statistics
+        continue-on-error: true   # Linting-Fehler stoppen den Build nicht
+
+      # ── 3. Security Check mit bandit ─────────
+      - name: Security Check (bandit)
+        run: |
+          bandit -r . --exclude ./.git -ll
+        continue-on-error: true   # Report anzeigen, aber nicht abbrechen
+
+      # ── 4. Vulnerability Check mit pip-audit ─
+      - name: Vulnerability Check (pip-audit)
+        run: |
+          pip-audit -r requirements.txt -f json -o audit.json
+        continue-on-error: true
+
+      # ── pip-audit Report als Artifact speichern
+      - name: Upload pip-audit report
+        uses: actions/upload-artifact@v4
+        with:
+          name: pip-audit-report
+          path: audit.json
